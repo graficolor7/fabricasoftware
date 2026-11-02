@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "factory_version": "1.0.0",
+  "project_id": "mi-proyecto",
+  "project_version": "0.1.0",
+  "updated_at": "2026-01-01",
+  "last_verified_commit": "0000000",
+  "status": "NORMAL",
+  "current_milestone": "M0",
+  "milestones": [{ "id": "M0", "status": "ACTIVE" }],
+  "contracts": [],
+  "open_risks": [],
+  "known_issues_ref": "docs/KNOWN_ISSUES.md",
+  "domains": [],
+  "pointers": {
+    "current_state": "docs/CURRENT_STATE.md",
+    "decisions": "docs/DECISIONS.md",
+    "profile": ".factory/PROFILE.md"
+  },
+  "next_action": "Completar G0 DISCOVERY"
+}

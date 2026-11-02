@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/graficolor7/fabricasoftware/schemas/change-request.schema.json",
+  "title": "ChangeRequest",
+  "type": "object",
+  "required": ["CR_ID", "decision_affected", "current_state", "problem", "evidence", "proposed_change", "affected_domains", "migration", "risk", "rollback", "tests_required", "status"],
+  "properties": {
+    "CR_ID": { "type": "string", "pattern": "^CR-\\d{3,}$" },
+    "decision_affected": { "type": "string" },
+    "current_state": { "type": "string" },
+    "problem": { "type": "string" },
+    "evidence": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "proposed_change": { "type": "string" },
+    "affected_domains": { "type": "array", "items": { "type": "string" } },
+    "migration": { "type": "string" },
+    "risk": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    "rollback": { "type": "string" },
+    "tests_required": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "status": { "enum": ["PROPOSED", "APPROVED", "REJECTED", "IMPLEMENTED", "VERIFIED"] }
+  }
+}

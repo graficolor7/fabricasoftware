@@ -1,0 +1,78 @@
+# Gate del supervisor, reutilizable desde cualquier proyecto:
+#
+#   jobs:
+#     supervisor:
+#       uses: graficolor7/fabricasoftware/.github/workflows/supervisor-gate.yml@main
+#       with:
+#         packet: .factory/packets/M1-G6.json
+#         pr_number: ${{ github.event.pull_request.number }}
+#       secrets:
+#         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#
+# Falla (rojo) si el veredicto es BLOCKED, si el paquete es inválido o si se pide evidencia.
+# Si el proveedor no está disponible, termina en SUPERVISOR_PENDING (rojo, sin tocar el proyecto).
+name: supervisor-gate
+on:
+  workflow_call:
+    inputs:
+      packet:
+        description: Ruta del Supervisor Packet en el repo del proyecto
+        type: string
+        required: true
+      pr_number:
+        description: PR donde publicar el veredicto (opcional)
+        type: string
+        required: false
+        default: ""
+      model:
+        description: Modelo del supervisor; si se omite se usa la variable OPENAI_MODEL del proyecto
+        type: string
+        required: false
+        default: ""
+      factory_ref:
+        type: string
+        required: false
+        default: main
+    secrets:
+      OPENAI_API_KEY:
+        required: true
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: graficolor7/fabricasoftware
+          ref: ${{ inputs.factory_ref }}
+          path: .fabrica
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r .fabrica/requirements.txt
+      - name: Supervisor
+        id: sup
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ inputs.model != '' && inputs.model || vars.OPENAI_MODEL }}
+        run: |
+          set +e
+          python .fabrica/adapters/supervisor/supervisor.py --packet "${{ inputs.packet }}" --out verdict.json --md verdict.md
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat verdict.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supervisor-verdict
+          path: |
+            verdict.json
+            verdict.md
+      - name: Publicar en el PR
+        if: inputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ inputs.pr_number }}" --repo "${{ github.repository }}" --body-file verdict.md
+      - name: Resultado del gate
+        run: exit ${{ steps.sup.outputs.code }}

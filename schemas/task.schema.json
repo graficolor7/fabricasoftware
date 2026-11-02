@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/graficolor7/fabricasoftware/schemas/task.schema.json",
+  "title": "TaskContract",
+  "description": "Contrato de tarea. Ningún agente recibe una instrucción sin contrato.",
+  "type": "object",
+  "required": ["TASK_ID", "PROJECT_ID", "MILESTONE", "DOMAIN", "OBJECTIVE", "SCOPE", "OUT_OF_SCOPE", "ALLOWED_COMPONENTS", "ACCEPTANCE_CRITERIA", "VERIFICATION_REQUIRED", "EVIDENCE_REQUIRED", "COMPLEXITY", "RISK", "RECOMMENDED_MODEL_CLASS", "ESCALATION_RULE"],
+  "properties": {
+    "TASK_ID": { "type": "string", "pattern": "^[A-Z0-9]+(-[A-Z0-9]+)*$" },
+    "PROJECT_ID": { "type": "string" },
+    "MILESTONE": { "type": "string" },
+    "DOMAIN": { "type": "string" },
+    "OBJECTIVE": { "type": "string", "minLength": 10 },
+    "CONTEXT": { "type": "array", "items": { "type": "string" }, "description": "Rutas o referencias, no texto pegado" },
+    "SCOPE": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "OUT_OF_SCOPE": { "type": "array", "items": { "type": "string" } },
+    "ALLOWED_COMPONENTS": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "Rutas/globs que el agente puede modificar" },
+    "DEPENDENCIES": { "type": "array", "items": { "type": "string" } },
+    "CONSTRAINTS": { "type": "array", "items": { "type": "string" } },
+    "ACCEPTANCE_CRITERIA": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "VERIFICATION_REQUIRED": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "EVIDENCE_REQUIRED": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "COMPLEXITY": { "enum": ["L0", "L1", "L2", "L3", "L4"] },
+    "RISK": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    "RECOMMENDED_MODEL_CLASS": { "enum": ["FAST", "WORKER", "WORKER+DIRECTOR_REVIEW", "DIRECTOR"] },
+    "TOKEN_BUDGET_CLASS": { "enum": ["S", "M", "L", "XL"] },
+    "ESCALATION_RULE": { "type": "string" },
+    "OUTPUT_FORMAT": { "type": "string" },
+    "REQUIRES_SUPERVISOR": { "type": "boolean" }
+  },
+  "allOf": [
+    { "if": { "properties": { "RISK": { "const": "CRITICAL" } } }, "then": { "properties": { "RECOMMENDED_MODEL_CLASS": { "const": "DIRECTOR" }, "REQUIRES_SUPERVISOR": { "const": true } }, "required": ["REQUIRES_SUPERVISOR"] } },
+    { "if": { "properties": { "COMPLEXITY": { "const": "L4" } } }, "then": { "properties": { "RECOMMENDED_MODEL_CLASS": { "const": "DIRECTOR" } } } }
+  ]
+}
