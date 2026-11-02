@@ -1,0 +1,23 @@
+{
+  "TASK_ID": "M1-EJEMPLO-01",
+  "PROJECT_ID": "mi-proyecto",
+  "MILESTONE": "M1",
+  "DOMAIN": "core",
+  "OBJECTIVE": "Describir en una frase el resultado verificable que se espera.",
+  "CONTEXT": ["docs/CURRENT_STATE.md", "docs/API_CONTRACTS.md#seccion"],
+  "SCOPE": ["Qué entra"],
+  "OUT_OF_SCOPE": ["Qué no entra"],
+  "ALLOWED_COMPONENTS": ["packages/core/src/**", "packages/core/test/**"],
+  "DEPENDENCIES": [],
+  "CONSTRAINTS": ["No cambiar contratos congelados"],
+  "ACCEPTANCE_CRITERIA": ["Criterio medible 1"],
+  "VERIFICATION_REQUIRED": ["pnpm typecheck", "pnpm test"],
+  "EVIDENCE_REQUIRED": ["salida de tests", "commit"],
+  "COMPLEXITY": "L2",
+  "RISK": "LOW",
+  "RECOMMENDED_MODEL_CLASS": "WORKER",
+  "TOKEN_BUDGET_CLASS": "M",
+  "ESCALATION_RULE": "Tras 2 intentos fallidos con evidencia nueva: análisis de causa raíz y escalar al Director",
+  "OUTPUT_FORMAT": "PR con resumen, evidencia y lista de archivos tocados",
+  "REQUIRES_SUPERVISOR": false
+}

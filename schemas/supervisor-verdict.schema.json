@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/graficolor7/fabricasoftware/schemas/supervisor-verdict.schema.json",
+  "title": "SupervisorVerdict",
+  "description": "Veredicto del supervisor independiente. Compatible con salida estructurada estricta de OpenAI: todas las propiedades son obligatorias y no se permiten propiedades extra.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "gate", "commit", "summary", "findings", "required_actions", "optional_improvements", "evidence_requested", "next_gate"],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["PASS", "PASS_WITH_ACTIONS", "BLOCKED"] },
+    "gate": { "type": "string" },
+    "commit": { "type": "string" },
+    "summary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "category", "title", "detail", "evidence", "blocking"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+          "category": { "type": "string", "enum": ["requirements", "architecture", "correctness", "security", "integrity", "tests", "performance", "regression", "maintainability", "documentation", "risk"] },
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "evidence": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "required_actions": { "type": "array", "items": { "type": "string" } },
+    "optional_improvements": { "type": "array", "items": { "type": "string" } },
+    "evidence_requested": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref", "reason"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["file", "adr", "contract", "test", "benchmark", "log", "other"] },
+          "ref": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "next_gate": { "type": "string" }
+  }
+}

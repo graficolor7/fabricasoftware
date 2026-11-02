@@ -1,0 +1,30 @@
+name: factory-ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Schemas son JSON Schema válidos
+        run: |
+          python - <<'PY'
+          import json, glob, jsonschema
+          for p in glob.glob("schemas/*.json"):
+              jsonschema.Draft202012Validator.check_schema(json.load(open(p)))
+              print("OK", p)
+          PY
+      - name: Plantillas cumplen sus schemas
+        run: |
+          python tools/validate.py project-state templates/PROJECT_STATE.json
+          python tools/validate.py task templates/TASK.json
+          python tools/validate.py supervisor-packet templates/SUPERVISOR_PACKET.json
+      - run: python -m pytest -q

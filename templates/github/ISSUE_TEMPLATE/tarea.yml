@@ -1,0 +1,48 @@
+name: Tarea de la fábrica
+description: Task Contract. Un issue = una tarea = un PR.
+title: "[TAREA] "
+labels: ["fabrica"]
+body:
+  - type: input
+    id: task_id
+    attributes: { label: TASK_ID, placeholder: M1-ELIPSE-01 }
+    validations: { required: true }
+  - type: input
+    id: milestone
+    attributes: { label: MILESTONE }
+    validations: { required: true }
+  - type: input
+    id: domain
+    attributes: { label: DOMAIN }
+    validations: { required: true }
+  - type: textarea
+    id: objective
+    attributes: { label: OBJECTIVE, description: Resultado verificable en una o dos frases }
+    validations: { required: true }
+  - type: textarea
+    id: scope
+    attributes: { label: SCOPE / OUT_OF_SCOPE }
+    validations: { required: true }
+  - type: textarea
+    id: allowed
+    attributes: { label: ALLOWED_COMPONENTS, description: Rutas o globs que se pueden modificar }
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes: { label: ACCEPTANCE_CRITERIA, description: Uno por línea, medibles }
+    validations: { required: true }
+  - type: textarea
+    id: verification
+    attributes: { label: VERIFICATION_REQUIRED / EVIDENCE_REQUIRED }
+    validations: { required: true }
+  - type: dropdown
+    id: complexity
+    attributes: { label: COMPLEXITY, options: [L0, L1, L2, L3, L4] }
+    validations: { required: true }
+  - type: dropdown
+    id: risk
+    attributes: { label: RISK, options: [LOW, MEDIUM, HIGH, CRITICAL] }
+    validations: { required: true }
+  - type: textarea
+    id: constraints
+    attributes: { label: CONSTRAINTS / DEPENDENCIES / ESCALATION_RULE }
