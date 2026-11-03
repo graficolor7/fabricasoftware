@@ -24,6 +24,7 @@ PROFILE = {
     "escalation_rules": [{"trigger": "SHARED_CONTRACT_BREAKING_CHANGE", "paths": ["docs/API_CONTRACTS.md", "src/contracts/*"], "description": "contratos"}],
     "verification": [],
     "evidence": {"adr_files": ["docs/DECISIONS.md"], "contract_files": {"API": "docs/API_CONTRACTS.md"}},
+    "config": {"SUPERVISOR_ALLOW_MOCK_CLOSURE": True},
 }
 
 DRAFT = {

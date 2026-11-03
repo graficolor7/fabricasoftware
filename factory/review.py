@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import os
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -27,7 +28,7 @@ from factory.adapters.manual import ManualSupervisorAdapter
 from factory.config import SupervisorConfig
 from factory.errors import FactoryError
 from factory.profile import check_trigger
-from factory.security import redact
+from factory.security import SECRET_ENV_VARS, redact
 from factory.state import update_gate_state
 from factory.store import LockBusy, ReviewStore, append_jsonl, now, read_json, write_json
 
@@ -124,7 +125,9 @@ class Orchestrator:
                 raise FactoryError(f"verificación '{cmd['name']}': cwd fuera del repo")
             t0 = time.monotonic()
             try:
-                r = subprocess.run(cmd["argv"], cwd=cwd, capture_output=True, timeout=cmd.get("timeout_s", 1800), check=False)
+                # Los comandos del proyecto nunca ven las claves del supervisor.
+                env = {k: v for k, v in os.environ.items() if k not in SECRET_ENV_VARS and not k.startswith("SUPERVISOR_PRICE")}
+                r = subprocess.run(cmd["argv"], cwd=cwd, capture_output=True, timeout=cmd.get("timeout_s", 1800), check=False, env=env)
                 code, out = r.returncode, (r.stdout + b"\n" + r.stderr).decode("utf-8", "replace")
             except subprocess.TimeoutExpired:
                 code, out = -1, "TIMEOUT"
@@ -233,7 +236,7 @@ class Orchestrator:
             write_json(d / f"round-{rnd:02d}.json", row)
             self.store.record_round(rid, row, None, status)
             update_gate_state(self.root, self.profile, meta, rid, rnd, row["commit"], status, policy.GATE_OPEN, None, ar.model,
-                              detail=ar.detail)
+                              detail=ar.detail, provider=self.adapter.name)
             return self._finish(rid, rnd, status, policy.GATE_OPEN, detail=ar.detail)
 
         effective, _ = policy.apply(ar.verdict, p, self.cfg.blocking_severities, self.store.overrides(rid))
@@ -246,7 +249,7 @@ class Orchestrator:
         self.store.record_round(rid, row, key, effective["verdict"])
         # Solo después de persistir: estado del proyecto.
         update_gate_state(self.root, self.profile, meta, rid, rnd, row["commit"], effective["verdict"], effective["policy"]["gate_effect"],
-                          effective, ar.model)
+                          effective, ar.model, provider=self.adapter.name)
         res = self._finish(rid, rnd, effective["verdict"], effective["policy"]["gate_effect"], effective["summary"], verdict=effective)
         if kind == "DELTA":
             dis = self._check_disagreement(rid, p, effective)
@@ -262,7 +265,8 @@ class Orchestrator:
         write_json(d / "review.json", rec)
         self.store.set_status(rid, "HUMAN_REVIEW_REQUIRED")
         commit = (read_json(d / "verdict.json", {}) or {}).get("commit") or read_json(d / "packet.json", {}).get("project", {}).get("commit", "")
-        update_gate_state(self.root, self.profile, meta, rid, max(rnd, 0), commit, "HUMAN_REVIEW_REQUIRED", policy.HUMAN_REVIEW, None, None, detail=reason)
+        update_gate_state(self.root, self.profile, meta, rid, max(rnd, 0), commit, "HUMAN_REVIEW_REQUIRED", policy.HUMAN_REVIEW, None, None, detail=reason,
+                          provider=self.adapter.name)
         return self._finish(rid, max(rnd, 0), "HUMAN_REVIEW_REQUIRED", policy.HUMAN_REVIEW, detail=reason)
 
     # ================================================================ evidencia

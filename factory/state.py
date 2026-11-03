@@ -28,7 +28,7 @@ def load_state(root: Path, profile: dict) -> dict:
 
 
 def update_gate_state(root: Path, profile: dict, meta: dict, review_id: str, rnd: int, commit: str, status: str, gate_effect: str,
-                      verdict: dict | None, model: str | None, detail: str = "") -> None:
+                      verdict: dict | None, model: str | None, detail: str = "", provider: str | None = None) -> None:
     st = load_state(root, profile)
     pol = (verdict or {}).get("policy", {})
     prev = st["gates"].get(meta["gate_key"], {})
@@ -36,6 +36,7 @@ def update_gate_state(root: Path, profile: dict, meta: dict, review_id: str, rnd
         "milestone": meta["milestone"], "gate": meta["gate"], "trigger": meta["trigger"], "status": status, "gate_effect": gate_effect,
         "review_id": review_id, "round": rnd, "commit": commit, "verdict": (verdict or {}).get("verdict"),
         "supervisor_model": model,
+        "provider": provider or prev.get("provider", "unknown"),
         "blockers": pol.get("blocking_findings", []) + pol.get("blocking_actions", []) if verdict else prev.get("blockers", []),
         "pending_actions": pol.get("pending_actions", []) if verdict else prev.get("pending_actions", []),
         "accepted_risks": pol.get("accepted_risks", []) if verdict else prev.get("accepted_risks", []),

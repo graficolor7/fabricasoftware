@@ -1,31 +1,68 @@
-# Gate del supervisor, reutilizable desde cualquier proyecto:
+# Gate del supervisor (ChatGPT/OpenAI), reutilizable desde cualquier proyecto.
 #
+# NUNCA se dispara en cada push. El proyecto lo llama desde un workflow con
+# `workflow_dispatch` (gate manual) o desde una etiqueta controlada en un PR
+# (ver docs/supervisor/README.md §GitHub). Ejemplo en el repo del proyecto:
+#
+#   on:
+#     workflow_dispatch:
+#       inputs: { draft: {required: true}, milestone: {required: true}, gate: {required: true}, trigger: {required: true} }
 #   jobs:
 #     supervisor:
 #       uses: graficolor7/fabricasoftware/.github/workflows/supervisor-gate.yml@main
 #       with:
-#         packet: .factory/packets/M1-G6.json
-#         pr_number: ${{ github.event.pull_request.number }}
+#         mode: review
+#         draft: ${{ inputs.draft }}
+#         milestone: ${{ inputs.milestone }}
+#         gate: ${{ inputs.gate }}
+#         trigger: ${{ inputs.trigger }}
 #       secrets:
 #         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 #
-# Falla (rojo) si el veredicto es BLOCKED, si el paquete es inválido o si se pide evidencia.
-# Si el proveedor no está disponible, termina en SUPERVISOR_PENDING (rojo, sin tocar el proyecto).
+# Variables del repo del proyecto (Settings → Variables): SUPERVISOR_PROVIDER, SUPERVISOR_MODEL,
+# SUPERVISOR_LIVE_ENABLED (solo el PO la pone en true), SUPERVISOR_REASONING_LEVEL, límites SUPERVISOR_MAX_*.
+# Resultado: rojo si BLOCKED, inválido, pendiente, sin evidencia o revisión humana; verde solo si el gate
+# puede cerrar o continuar. El registro de la revisión se sube como artefacto `supervisor-review`.
 name: supervisor-gate
 on:
   workflow_call:
     inputs:
-      packet:
-        description: Ruta del Supervisor Packet en el repo del proyecto
+      mode:
+        description: review | baseline | delta | retry | evidence
         type: string
         required: true
-      pr_number:
-        description: PR donde publicar el veredicto (opcional)
+      draft:
+        description: Borrador del paquete (review/baseline/delta), ruta en el repo del proyecto
         type: string
         required: false
         default: ""
-      model:
-        description: Modelo del supervisor; si se omite se usa la variable OPENAI_MODEL del proyecto
+      milestone:
+        type: string
+        required: false
+        default: ""
+      gate:
+        type: string
+        required: false
+        default: ""
+      trigger:
+        type: string
+        required: false
+        default: ""
+      review_id:
+        description: Revisión existente (delta/retry/evidence)
+        type: string
+        required: false
+        default: ""
+      evidence_file:
+        type: string
+        required: false
+        default: ""
+      run_verification:
+        type: boolean
+        required: false
+        default: false
+      pr_number:
+        description: PR donde comentar el resultado (opcional)
         type: string
         required: false
         default: ""
@@ -35,15 +72,30 @@ on:
         default: main
     secrets:
       OPENAI_API_KEY:
-        required: true
+        required: false
+    outputs:
+      status:
+        value: ${{ jobs.gate.outputs.status }}
+      review_id:
+        value: ${{ jobs.gate.outputs.review_id }}
 permissions:
   contents: read
   pull-requests: write
+concurrency:
+  # Un gate a la vez por repo+milestone+gate; nunca se cancela una revisión en curso.
+  group: supervisor-${{ github.repository }}-${{ inputs.milestone }}-${{ inputs.gate }}-${{ inputs.review_id }}
+  cancel-in-progress: false
 jobs:
   gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      status: ${{ steps.sup.outputs.status }}
+      review_id: ${{ steps.sup.outputs.review_id }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           repository: graficolor7/fabricasoftware
@@ -56,23 +108,75 @@ jobs:
       - name: Supervisor
         id: sup
         env:
+          PYTHONPATH: .fabrica
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ inputs.model != '' && inputs.model || vars.OPENAI_MODEL }}
+          SUPERVISOR_PROVIDER: ${{ vars.SUPERVISOR_PROVIDER || 'openai' }}
+          SUPERVISOR_MODEL: ${{ vars.SUPERVISOR_MODEL }}
+          SUPERVISOR_LIVE_ENABLED: ${{ vars.SUPERVISOR_LIVE_ENABLED }}
+          SUPERVISOR_REASONING_LEVEL: ${{ vars.SUPERVISOR_REASONING_LEVEL }}
+          SUPERVISOR_MAX_OUTPUT: ${{ vars.SUPERVISOR_MAX_OUTPUT }}
+          SUPERVISOR_MAX_CALLS_PER_GATE: ${{ vars.SUPERVISOR_MAX_CALLS_PER_GATE }}
+          SUPERVISOR_MAX_EVIDENCE_ROUNDS: ${{ vars.SUPERVISOR_MAX_EVIDENCE_ROUNDS }}
+          SUPERVISOR_MAX_CONTEXT_BYTES: ${{ vars.SUPERVISOR_MAX_CONTEXT_BYTES }}
+          IN_MODE: ${{ inputs.mode }}
+          IN_DRAFT: ${{ inputs.draft }}
+          IN_MILESTONE: ${{ inputs.milestone }}
+          IN_GATE: ${{ inputs.gate }}
+          IN_TRIGGER: ${{ inputs.trigger }}
+          IN_REVIEW: ${{ inputs.review_id }}
+          IN_EVIDENCE: ${{ inputs.evidence_file }}
+          IN_VERIFY: ${{ inputs.run_verification }}
+        # Las entradas llegan por variables de entorno (no se interpolan en el script) para evitar inyección de comandos.
         run: |
           set +e
-          python .fabrica/adapters/supervisor/supervisor.py --packet "${{ inputs.packet }}" --out verdict.json --md verdict.md
-          echo "code=$?" >> "$GITHUB_OUTPUT"
-          cat verdict.md >> "$GITHUB_STEP_SUMMARY"
+          args=(--project-root . supervisor "$IN_MODE" --json)
+          case "$IN_MODE" in
+            review)   args+=(--draft "$IN_DRAFT" --milestone "$IN_MILESTONE" --gate "$IN_GATE" --trigger "$IN_TRIGGER") ;;
+            baseline) args+=(--draft "$IN_DRAFT" --milestone "$IN_MILESTONE" --gate "$IN_GATE") ;;
+            delta)    args+=(--review "$IN_REVIEW" --draft "$IN_DRAFT") ;;
+            retry)    args+=(--review "$IN_REVIEW") ;;
+            evidence) args+=(--review "$IN_REVIEW"); [ -n "$IN_EVIDENCE" ] && args+=(--evidence-file "$IN_EVIDENCE") ;;
+            *) echo "modo no válido: $IN_MODE"; exit 2 ;;
+          esac
+          if [ "$IN_VERIFY" = "true" ] && { [ "$IN_MODE" = review ] || [ "$IN_MODE" = baseline ] || [ "$IN_MODE" = delta ]; }; then args+=(--run-verification); fi
+          python -m factory "${args[@]}" > result.json
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          r = json.load(open("result.json"))
+          print("status=" + r.get("status", "ERROR"))
+          print("review_id=" + (r.get("review_id") or ""))
+          PY
+          python - <<'PY' > summary.md
+          import json
+          r = json.load(open("result.json"))
+          print(f"## Supervisor · {r.get('status')} · {r.get('gate_effect', '')}")
+          for k in ("review_id", "round", "summary", "detail"):
+              if r.get(k): print(f"- **{k}:** {r[k]}")
+          for k in ("blockers", "pending_actions", "errors"):
+              for x in r.get(k, []): print(f"- {k}: {x}")
+          u = r.get("usage") or {}
+          if u.get("calls"): print(f"\n<sub>{u['calls']} llamada(s) · entrada {u['input_tokens']} · salida {u['output_tokens']} · modelo {', '.join(u['models'])} · costo {u.get('cost_estimate')}</sub>")
+          PY
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: supervisor-verdict
+          name: supervisor-review
           path: |
-            verdict.json
-            verdict.md
-      - name: Publicar en el PR
+            result.json
+            summary.md
+            .factory/SUPERVISOR_STATE.json
+            .factory/reviews/
+          if-no-files-found: warn
+      - name: Comentar en el PR
         if: inputs.pr_number != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr comment "${{ inputs.pr_number }}" --repo "${{ github.repository }}" --body-file verdict.md
+          PR: ${{ inputs.pr_number }}
+        run: gh pr comment "$PR" --repo "${{ github.repository }}" --body-file summary.md
       - name: Resultado del gate
-        run: exit ${{ steps.sup.outputs.code }}
+        env:
+          CODE: ${{ steps.sup.outputs.code }}
+        run: exit "$CODE"

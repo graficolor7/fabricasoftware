@@ -164,3 +164,24 @@ def test_packet_hash_ignores_meta_and_is_stable(project, draft):
     b = json.loads(json.dumps(a))
     b["meta"]["created_at"] = "otro"
     assert pk.packet_hash(a) == pk.packet_hash(b)
+
+
+def test_verification_commands_never_see_api_key(project, draft, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", FAKE_KEY)
+    prof = project.profile
+    prof["verification"] = [{"name": "env", "category": "unit", "argv": ["python3", "-c", "import os; print(os.environ.get('OPENAI_API_KEY', 'SIN_CLAVE'))"]}]
+    project.write(".factory/supervisor.json", json.dumps(prof))
+    project.commit("prof")
+    o = project.orch(["PASS"])
+    o.review(draft, run_verification=True, **KW)
+    assert "SIN_CLAVE" in o.adapter.packets[0]["verification"]["unit"]["summary"]
+
+
+def test_huge_blob_not_loaded(project, monkeypatch):
+    import factory.evidence as ev
+    monkeypatch.setattr(ev, "MAX_BLOB_BYTES", 100)
+    project.write("grande.txt", "y" * 500)
+    project.commit()
+    att, un = ev.collect(project.root, {"project": {"commit": "HEAD"}}, [{"type": "file_excerpt", "ref": "grande.txt", "lines": "1-1", "reason": "x"}],
+                         project.profile, load_config(env={}))
+    assert att == [] and "demasiado grande" in un[0]["reason"]

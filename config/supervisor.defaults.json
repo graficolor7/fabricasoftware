@@ -2,6 +2,7 @@
   "_comment": "Valores por defecto de la fábrica. Orden de precedencia: variables de entorno > .factory/supervisor.json (config) > este archivo. No pongas secretos aquí.",
   "SUPERVISOR_PROVIDER": "mock",
   "SUPERVISOR_LIVE_ENABLED": false,
+  "SUPERVISOR_ALLOW_MOCK_CLOSURE": false,
   "SUPERVISOR_MODEL": "",
   "SUPERVISOR_REASONING_LEVEL": "",
   "SUPERVISOR_MAX_OUTPUT": 25000,

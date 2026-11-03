@@ -18,6 +18,8 @@ def close_gate(root: Path, profile: dict, store: ReviewStore, milestone: str, ga
         raise FactoryError(f"no hay revisión del supervisor para {gate_key}: el gate no puede cerrar")
     if g["gate_effect"] not in (policy.CAN_CLOSE, policy.CAN_CONTINUE):
         raise FactoryError(f"{gate_key} está en {g['status']} ({g['gate_effect']}): no puede cerrar")
+    if g.get("provider") == "mock" and not profile.get("config", {}).get("SUPERVISOR_ALLOW_MOCK_CLOSURE"):
+        raise FactoryError("la revisión la hizo el MockSupervisorAdapter: no cierra gates reales (solo pruebas)")
     target = commit or (git.head(root) if git.is_repo(root) else g["commit"])
     if target[:12] != g["commit"][:12]:
         raise FactoryError(f"la revisión válida es del commit {g['commit'][:12]} y se quiere cerrar en {target[:12]}: hace falta un delta")
@@ -67,5 +69,6 @@ def add_override(root: Path, profile: dict, store: ReviewStore, review_id: str, 
     write_json(d / "verdict.json", {**{k: v[k] for k in ("review_id", "round", "commit", "packet_hash", "model", "created_at")}, **eff,
                                     "recomputed_after_override": row["override_id"]})
     meta = store.review_meta(review_id)
-    update_gate_state(root, profile, meta, review_id, v["round"], v["commit"], eff["verdict"], eff["policy"]["gate_effect"], eff, v.get("model"))
+    update_gate_state(root, profile, meta, review_id, v["round"], v["commit"], eff["verdict"], eff["policy"]["gate_effect"], eff, v.get("model"),
+                      provider=load_state(root, profile)["gates"].get(meta["gate_key"], {}).get("provider"))
     return row

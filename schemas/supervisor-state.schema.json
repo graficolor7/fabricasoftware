@@ -28,6 +28,7 @@
           "commit": { "type": "string" },
           "verdict": { "type": ["string", "null"] },
           "supervisor_model": { "type": ["string", "null"] },
+          "provider": { "type": "string" },
           "blockers": { "type": "array", "items": { "type": "string" } },
           "pending_actions": { "type": "array", "items": { "type": "string" } },
           "accepted_risks": { "type": "array", "items": { "type": "string" } },

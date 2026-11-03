@@ -1,6 +1,6 @@
 # SOFTWARE FACTORY · Constitución
 
-**FACTORY_VERSION:** ver `VERSION` (1.0.0). La versión de la fábrica es independiente de la de cada proyecto.
+**FACTORY_VERSION:** ver `VERSION` (1.1.0). La versión de la fábrica es independiente de la de cada proyecto.
 
 ## Propósito
 Protocolo reutilizable y permanente para desarrollar software con IA: Claude construye, un supervisor independiente (ChatGPT) audita en los gates, las herramientas deterministas verifican y el Product Owner humano decide.
@@ -37,9 +37,12 @@ Agentes **universales** (Director, Test, Code Review, Documentation, Security, R
 | `schemas/` | JSON Schema de PROJECT_STATE, tarea, paquete y veredicto del supervisor, Change Request |
 | `prompts/` | prompts base de Director, Worker, Fast Worker y Supervisor |
 | `templates/` | plantillas para arrancar un proyecto y sus registros (incluye `github/ISSUE_TEMPLATE/tarea.yml`) |
-| `adapters/supervisor/` | SupervisorAdapter (OpenAI) con validación y operación degradada |
+| `factory/` | herramientas: `python -m factory supervisor …` (SupervisorAdapter OpenAI/Mock/Manual, paquetes, evidencia, política, registro, locks) y `factory status` |
+| `config/` | configuración central del supervisor (sin secretos) |
+| `adapters/supervisor/` | envoltorio de compatibilidad 1.0 |
 | `tools/` | validadores |
-| `.github/workflows/` | CI de la fábrica y workflow reutilizable del gate del supervisor |
+| `.github/workflows/` | CI de la fábrica, gate reutilizable del supervisor y aviso de triggers |
+| `docs/supervisor/` | supervisor automático: operación, discovery y revisión de seguridad |
 | `docs/INIT_NEW_PROJECT.md` | cómo aplicar la fábrica a un proyecto nuevo o existente |
 
 ## Cambios a la fábrica

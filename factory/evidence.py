@@ -27,6 +27,7 @@ DEFAULT_DENIED = [".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", "id_rsa*
 LINES_RE = re.compile(r"^\s*(\d{1,7})\s*(?:[-–:]\s*(\d{1,7}))?\s*$")
 ADR_ID_RE = re.compile(r"^[A-Za-z]{2,10}-\d{1,5}[a-z]?$")
 FILE_TYPES = {"file_excerpt", "test", "benchmark", "log"}
+MAX_BLOB_BYTES = 5_000_000  # no se carga en memoria un archivo mayor para sacar un extracto
 
 
 def safe_relpath(ref: str) -> str:
@@ -66,8 +67,15 @@ def _slice_lines(text: str, lines: str | None) -> tuple[str, str | None]:
 
 def _read_at_commit(root: Path, commit: str, path: str, max_bytes: int) -> str:
     if git.is_repo(root):
+        spec = f"{git._check_ref(commit)}:{path}"
         try:
-            data = git.run_git(root, "show", f"{git._check_ref(commit)}:{path}", max_bytes=max_bytes * 4 + 1)
+            size = int(git.run_git(root, "cat-file", "-s", spec).strip())
+        except (FactoryError, ValueError) as e:
+            raise FactoryError(f"no existe en el commit {commit[:12]}") from e
+        if size > MAX_BLOB_BYTES:
+            raise FactoryError(f"archivo de {size} bytes: demasiado grande para extraer (> {MAX_BLOB_BYTES}); pide un rango o un resumen")
+        try:
+            data = git.run_git(root, "show", spec, max_bytes=max_bytes * 4 + 1)
         except FactoryError as e:
             raise FactoryError(f"no existe en el commit {commit[:12]}") from e
     else:  # pragma: no cover - solo fuera de git

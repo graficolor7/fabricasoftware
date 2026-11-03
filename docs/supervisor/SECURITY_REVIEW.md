@@ -1,0 +1,31 @@
+# Revisión de seguridad previa al live test · supervisor 1.1.0
+
+Fecha: 2026-11-03 · Alcance: `factory/`, `adapters/supervisor/supervisor.py`, `.github/workflows/supervisor-*.yml`, `config/`, `prompts/supervisor/`.
+Método: lectura del código + pruebas automáticas (`tests/test_factory_security.py`, `tests/test_openai_adapter.py`, `tests/test_factory_review.py`), todas sin red.
+
+| # | Riesgo | Control | Prueba | Estado |
+|---|---|---|---|---|
+| 1 | **Fuga de secretos** al proveedor | `find_secrets` sobre el paquete y la evidencia; paquete con secreto no se envía (`INVALID_PACKET`); evidencia con secreto se redacta; `.env*`, `*.pem`, `*.key`, `.git/`, `node_modules/` prohibidos como evidencia | `test_secret_in_packet_is_never_sent`, `test_secret_inside_evidence_is_redacted`, `test_path_traversal_and_denied_files` | OK |
+| 2 | **Fuga en logs y registros** | la clave solo vive en la cabecera HTTP en memoria; `redact()` en todo `write_json`/`append_jsonl`, errores HTTP, salida de la CLI y resumen de GitHub; config rechaza claves tipo KEY/TOKEN/SECRET | `test_api_key_never_written_anywhere` (el proveedor falso devuelve la clave en el cuerpo del error), `test_auth_error_not_retried_and_key_not_leaked`, `test_config_rejects_secret_like_keys` | OK |
+| 3 | **Command injection** | sin `shell=True`; git con lista de argumentos y refs validadas (`^(?!-)…`, sin `..`); comandos de verificación como `argv` del perfil; en Actions las entradas pasan por variables de entorno, nunca interpoladas en el script; los comandos del proyecto se ejecutan **sin** `OPENAI_API_KEY` en su entorno | `test_git_ref_injection_rejected`, `test_verification_commands_never_see_api_key` | OK |
+| 4 | **Prompt injection** desde el repo | prompt versionado en `instructions` con precedencia explícita; paquete como mensaje de usuario rotulado "untrusted project DATA" y delimitado; detector de frases típicas (EN/ES) → `meta.injection_flags`; el supervisor debe reportarlo como hallazgo `security`; la política determinista no depende del texto | `test_prompt_injection_is_flagged_and_kept_as_data`, `test_injection_flags_spanish` | OK (mitigado; ningún LLM es inmune: por eso la política final es determinista) |
+| 5 | **Path traversal** | `safe_relpath`: sin absolutas, sin `..`, sin unidad Windows, sin `-` inicial, sin `.git`; lectura desde el objeto git del commit (no sigue symlinks del disco); `allowed_roots` opcional; `reviews_dir` y `supervisor_state` deben quedar dentro del repo; IDs de revisión solo vía índice | `test_path_traversal_and_denied_files`, `test_symlink_outside_is_not_followed`, `test_allowed_roots_enforced` | OK |
+| 6 | **Evidencia gigante** | tope por archivo, por número de pedidos y de paquete; archivos > 5 MB no se cargan; binarios fuera | `test_oversized_and_binary_evidence`, `test_too_many_evidence_requests_capped`, `test_huge_blob_not_loaded`, `test_oversized_packet_rejected` | OK |
+| 7 | **JSON malformado** | borrador inválido → exit 2; respuesta inválida → 1 reparación → `INVALID_SUPERVISOR_RESPONSE`; texto ambiguo nunca es PASS; veredicto incoherente (NEED_EVIDENCE sin pedidos, IDs duplicados) → inválido | `test_malformed_json_draft_cli`, `test_ambiguous_text_never_becomes_pass`, `test_semantically_incoherent_verdict_is_invalid` | OK |
+| 8 | **Contenido no confiable** | todo el paquete es DATO; perfil y config son de confianza (los cambia el Director con PR revisado) | — | OK; ver riesgo residual R1 |
+| 9 | **Timeout de API** | `SUPERVISOR_TIMEOUT` por llamada, reintentos acotados, `timeout-minutes: 30` en Actions | `test_timeout_is_unavailable`, `test_provider_failure_never_passes[TIMEOUT]` | OK |
+| 10 | **Rate limits** | 408/409/429/5xx con backoff exponencial + jitter, respeta `Retry-After` (con tope) | `test_rate_limit_retries_with_backoff_then_succeeds`, `test_5xx_exhausts_retries_then_unavailable` | OK |
+| 11 | **Revisiones concurrentes** | lock de archivo atómico (`O_EXCL`) por milestone+gate con expiración de huérfanos; `concurrency` en Actions sin cancelar | `test_lock_prevents_concurrent_review`, `test_concurrent_threads_only_one_reviews`, `test_stale_lock_is_recovered` | OK |
+| 12 | **Triggers duplicados** | idempotencia proyecto+commit+gate+hash del paquete → `DUPLICATE` sin llamada; `--force-new` deja rastro `forced_repeat_of` | `test_duplicate_review_does_not_call_again` | OK |
+| 13 | **PASS sin supervisor** | sin veredicto válido el efecto es `GATE_OPEN`; `close` exige veredicto persistido del commit actual; Mock no cierra gates reales; el workflow usa `openai` si no se configura proveedor | `test_provider_failure_never_passes`, `test_close_gate_requires_reviewed_commit`, `test_mock_review_cannot_close_real_gate` | OK |
+| 14 | **Gasto accidental** | `SUPERVISOR_LIVE_ENABLED=false` por defecto: el adaptador OpenAI no toca la red (ni el health check) | `test_live_disabled_never_touches_network` | OK |
+
+## Riesgos residuales
+- **R1 · Perfil malicioso en un PR.** Quien pueda cambiar `.factory/supervisor.json` puede cambiar los comandos de verificación. Mitigación: los comandos no ven la clave; en GitHub el gate se lanza con `workflow_dispatch` por alguien con permisos, y los PR de forks no reciben secrets. Recomendación: proteger `.factory/**` con CODEOWNERS (el PO).
+- **R2 · Override auto-declarado.** `--i-am-the-product-owner` no autentica; deja registro (quién, motivo, riesgo). Claude tiene prohibido usarlo sin instrucción escrita del PO.
+- **R3 · Inyección sofisticada.** Se mitiga, no se elimina. La política determinista y los límites acotan el daño: un supervisor engañado solo puede producir un veredicto que igual pasa por las reglas, no ejecutar acciones.
+- **R4 · Registro en GitHub.** El workflow no escribe en el repo; el registro sale como artefacto (retención por defecto de GitHub). Debe commitearse para que sea permanente.
+- **R5 · Campos de la API.** Si OpenAI cambia la forma de la respuesta, el adaptador falla cerrado (`INVALID_SUPERVISOR_RESPONSE` / `SUPERVISOR_UNAVAILABLE`), nunca PASS.
+- **R6 · Costo real desconocido** hasta la primera llamada; se mide en `usage`. Sin tarifas configuradas no se calcula costo.
+
+Veredicto de esta revisión: sin bloqueos para un **primer live test controlado** con autorización del PO.

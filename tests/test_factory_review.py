@@ -332,3 +332,37 @@ def test_v1_packet_is_upgraded(project):
     r = o.review(v1, gate="G6", milestone="M1", trigger="MILESTONE_COMPLETION")
     assert r.status == "PASS"
     assert upgrade_v1(v1)["schema_version"] == "2"
+
+
+def test_mock_review_cannot_close_real_gate(project, draft):
+    prof = project.profile
+    prof["config"] = {}
+    project.write(".factory/supervisor.json", json.dumps(prof))
+    project.commit("sin mock")
+    o = project.orch(["PASS"])
+    o.review(draft, **KW)
+    with pytest.raises(FactoryError, match="Mock"):
+        close_gate(project.root, project.profile, o.store, "M1", "G6")
+
+
+def test_trigger_evaluate_by_paths(project, capsys):
+    from conftest import git
+    from factory.cli import main
+    base = git(project.root, "rev-parse", "HEAD").strip()
+    project.write("docs/API_CONTRACTS.md", "# Contratos\nv2\n")
+    project.write("src/ui/button.ts", "x")
+    project.commit("contrato")
+    assert main(["--project-root", str(project.root), "trigger", "evaluate", "--base", base]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["supervisor_required"] and out["triggers"][0]["trigger"] == "SHARED_CONTRACT_BREAKING_CHANGE"
+    assert out["triggers"][0]["files"] == ["docs/API_CONTRACTS.md"]
+
+
+def test_routine_change_triggers_nothing(project, capsys):
+    from conftest import git
+    from factory.cli import main
+    base = git(project.root, "rev-parse", "HEAD").strip()
+    project.write("src/ui/button.ts", "x")
+    project.commit("ui")
+    main(["--project-root", str(project.root), "trigger", "evaluate", "--base", base])
+    assert json.loads(capsys.readouterr().out)["supervisor_required"] is False

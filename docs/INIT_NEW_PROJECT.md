@@ -7,7 +7,9 @@
    - `.factory/PROFILE.md`: PROJECT_ID, tipo, plataforma, dominios, arquitectura, contratos, verificación por dominio, agentes específicos, zonas exclusivas, milestones, riesgos, gates propios.
    - `CLAUDE.md` en la raíz: reglas para los agentes, apuntando a lo anterior.
    - `.github/workflows/ci.yml` con las verificaciones deterministas del proyecto.
-   - `.github/workflows/supervisor-gate.yml` que llama al workflow reutilizable de la fábrica.
+   - `.factory/supervisor.json` (perfil del supervisor: `templates/SUPERVISOR_PROFILE.json`).
+   - `.github/workflows/supervisor-gate.yml` que llama al workflow reutilizable de la fábrica (ver `docs/supervisor/README.md`).
+   - Primera revisión: `factory supervisor baseline` (BASELINE_SUPERVISOR_REVIEW).
    - Un ADR que registre la adopción de la fábrica.
 3. Respetar la nomenclatura existente del proyecto; se mapea, no se renombra.
 
@@ -15,5 +17,5 @@
 Igual, pero G0 es corto y se pasa a G1 (requisitos) y G2 (arquitectura con spikes) antes de implementar.
 
 ## Secretos y variables en el repo del proyecto
-- Secret `OPENAI_API_KEY` y variable `OPENAI_MODEL` (modelo del supervisor).
+- Secret `OPENAI_API_KEY`; variables `SUPERVISOR_MODEL` (o `OPENAI_MODEL`), `SUPERVISOR_PROVIDER=openai` y `SUPERVISOR_LIVE_ENABLED=true` solo cuando el PO autorice el consumo real.
 - Secret `ANTHROPIC_API_KEY` si se usa Claude Code en GitHub Actions.

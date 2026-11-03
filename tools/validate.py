@@ -2,7 +2,7 @@
 """Valida archivos JSON de la fábrica contra sus schemas.
 
 Uso: python tools/validate.py <schema> <archivo.json> [...]
-     schema = project-state | task | supervisor-packet | supervisor-verdict | change-request
+     schema = project-state | task | supervisor-packet | supervisor-verdict | supervisor-profile | supervisor-state | supervisor-override | change-request
 """
 import json
 import sys
