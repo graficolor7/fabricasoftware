@@ -2,12 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/graficolor7/fabricasoftware/schemas/supervisor-verdict.schema.json",
   "title": "SupervisorVerdict",
-  "description": "Veredicto del supervisor independiente. Compatible con salida estructurada estricta de OpenAI: todas las propiedades son obligatorias y no se permiten propiedades extra.",
+  "description": "Veredicto (v2) del supervisor independiente. Compatible con salida estructurada estricta de OpenAI: todo objeto tiene additionalProperties false y todas sus propiedades en required; lo opcional se expresa con null. Las comprobaciones extra (formato de IDs, coherencia) las hace factory.policy.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["verdict", "gate", "commit", "summary", "findings", "required_actions", "optional_improvements", "evidence_requested", "next_gate"],
+  "required": ["schema_version", "verdict", "gate", "commit", "summary", "findings", "required_actions", "optional_improvements", "evidence_requests", "next_gate", "confidence"],
   "properties": {
-    "verdict": { "type": "string", "enum": ["PASS", "PASS_WITH_ACTIONS", "BLOCKED"] },
+    "schema_version": { "type": "string", "enum": ["2"] },
+    "verdict": { "type": "string", "enum": ["PASS", "PASS_WITH_ACTIONS", "BLOCKED", "NEED_EVIDENCE", "HUMAN_REVIEW_REQUIRED"] },
     "gate": { "type": "string" },
     "commit": { "type": "string" },
     "summary": { "type": "string" },
@@ -16,33 +17,48 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "severity", "category", "title", "detail", "evidence", "blocking"],
+        "required": ["id", "severity", "domain", "finding", "evidence", "required_action", "blocking"],
         "properties": {
           "id": { "type": "string" },
-          "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
-          "category": { "type": "string", "enum": ["requirements", "architecture", "correctness", "security", "integrity", "tests", "performance", "regression", "maintainability", "documentation", "risk"] },
-          "title": { "type": "string" },
-          "detail": { "type": "string" },
-          "evidence": { "type": "string" },
+          "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+          "domain": { "type": "string", "enum": ["requirements", "architecture", "correctness", "security", "integrity", "testing", "regression", "performance", "maintainability", "documentation", "risk", "acceptance", "readiness"] },
+          "finding": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "required_action": { "type": ["string", "null"] },
           "blocking": { "type": "boolean" }
         }
       }
     },
-    "required_actions": { "type": "array", "items": { "type": "string" } },
-    "optional_improvements": { "type": "array", "items": { "type": "string" } },
-    "evidence_requested": {
+    "required_actions": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["kind", "ref", "reason"],
+        "required": ["id", "action", "blocking", "finding_id"],
         "properties": {
-          "kind": { "type": "string", "enum": ["file", "adr", "contract", "test", "benchmark", "log", "other"] },
+          "id": { "type": "string" },
+          "action": { "type": "string" },
+          "blocking": { "type": "boolean" },
+          "finding_id": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "optional_improvements": { "type": "array", "items": { "type": "string" } },
+    "evidence_requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "ref", "lines", "reason"],
+        "properties": {
+          "type": { "type": "string", "enum": ["file_excerpt", "test", "adr", "contract", "diff", "commit", "ci_run", "benchmark", "log", "other"] },
           "ref": { "type": "string" },
+          "lines": { "type": ["string", "null"] },
           "reason": { "type": "string" }
         }
       }
     },
-    "next_gate": { "type": "string" }
+    "next_gate": { "type": "string" },
+    "confidence": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] }
   }
 }

@@ -1,0 +1,13 @@
+{
+  "implementation": { "summary": "Corrige SUP-001: añade test de regresión para deshacer el orden Z." },
+  "verification": { "unit": { "status": "PASS", "command": "pnpm test", "summary": "81/81", "evidence_ref": "ci-run-124" } },
+  "evidence_index": [{ "ref": "ci-run-124", "kind": "ci_run", "result": "verde" }],
+  "delta": {
+    "findings_addressed": [{ "id": "SUP-001", "summary": "faltaba test de regresión", "resolution": "tests/history/zorder.test.ts", "evidence": ["ci-run-124"] }],
+    "disputed_findings": [],
+    "changed_files": [],
+    "new_test_results": ["unit 81/81 (ci-run-124)"],
+    "new_evidence": [{ "ref": "ci-run-124", "kind": "ci_run", "result": "verde" }],
+    "remaining_risks": []
+  }
+}

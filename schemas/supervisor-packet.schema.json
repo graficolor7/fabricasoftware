@@ -2,65 +2,244 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/graficolor7/fabricasoftware/schemas/supervisor-packet.schema.json",
   "title": "SupervisorPacket",
-  "description": "Paquete compacto que el Director prepara para una auditoría de gate. Nunca incluye el repositorio completo ni secretos.",
+  "description": "Paquete compacto (v2) que el Director prepara para una revisión de gate. Nunca incluye el repositorio completo, logs gigantes, binarios, conversaciones ni secretos. Las afirmaciones van acompañadas de referencias verificables (evidence_index). Los paquetes v1 se convierten con factory.packet.upgrade_v1.",
   "type": "object",
-  "required": ["schema_version", "factory_version", "project_id", "milestone", "gate", "objective", "commit", "implemented_summary", "test_summary", "known_failures", "risks", "evidence_index", "requested_verdict"],
+  "additionalProperties": false,
+  "required": ["schema_version", "factory_version", "packet_kind", "project", "review", "implementation", "verification", "known_failures", "risks", "evidence_index"],
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN", "NOT_APPLICABLE"] },
+        "command": { "type": "string", "maxLength": 500 },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "evidence_ref": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "kind"],
+      "properties": {
+        "ref": { "type": "string", "maxLength": 500 },
+        "kind": { "enum": ["commit", "diff", "ci_run", "test_output", "benchmark", "adr", "contract", "error_report", "file", "log", "pr", "review", "other"] },
+        "result": { "type": "string", "maxLength": 500 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "finding_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "summary"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "severity": { "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+        "summary": { "type": "string", "maxLength": 1000 },
+        "resolution": { "type": "string", "maxLength": 2000 },
+        "evidence": { "type": "array", "items": { "type": "string", "maxLength": 500 }, "maxItems": 20 }
+      }
+    }
+  },
   "properties": {
-    "schema_version": { "const": "1" },
+    "schema_version": { "const": "2" },
     "factory_version": { "type": "string" },
-    "project_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
-    "project_version": { "type": "string" },
-    "milestone": { "type": "string" },
-    "gate": { "type": "string", "pattern": "^G[0-7](-[A-Z0-9_]+)?$" },
-    "objective": { "type": "string", "minLength": 1 },
-    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
-    "architecture_version": { "type": "string" },
-    "contract_versions": { "type": "object", "additionalProperties": { "type": "string" } },
-    "implemented_summary": { "type": "string" },
-    "changed_domains": { "type": "array", "items": { "type": "string" } },
-    "diff_summary": { "type": "string" },
-    "requirements_status": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "status"],
-        "properties": {
-          "id": { "type": "string" },
-          "status": { "enum": ["MET", "PARTIAL", "NOT_MET", "NOT_APPLICABLE"] },
-          "evidence": { "type": "string" }
+    "packet_kind": { "enum": ["INITIAL", "EVIDENCE", "DELTA", "BASELINE"] },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "repository", "branch", "commit"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "repository": { "type": "string", "maxLength": 200 },
+        "branch": { "type": "string", "maxLength": 200 },
+        "commit": { "$ref": "#/$defs/sha" },
+        "base_commit": { "$ref": "#/$defs/sha" },
+        "pr": { "type": ["string", "integer"] },
+        "version": { "type": "string", "maxLength": 100 }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["milestone", "gate", "trigger", "objective", "requested_verdict"],
+      "properties": {
+        "milestone": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$" },
+        "gate": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$" },
+        "trigger": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$" },
+        "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "requested_verdict": { "type": "boolean" },
+        "acceptance_criteria": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "status"],
+            "properties": {
+              "id": { "type": "string", "maxLength": 64 },
+              "text": { "type": "string", "maxLength": 500 },
+              "status": { "enum": ["MET", "PARTIAL", "NOT_MET", "NOT_APPLICABLE"] },
+              "evidence": { "type": "string", "maxLength": 500 }
+            }
+          }
         }
       }
     },
-    "test_summary": { "type": "string" },
-    "benchmark_summary": { "type": "string" },
-    "security_summary": { "type": "string" },
-    "known_failures": { "type": "array", "items": { "type": "string" } },
-    "risks": { "type": "array", "items": { "type": "string" } },
-    "previous_findings": { "type": "array", "items": { "type": "string" } },
-    "resolved_findings": { "type": "array", "items": { "type": "string" } },
-    "open_questions": { "type": "array", "items": { "type": "string" } },
-    "evidence_index": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["ref", "kind"],
-        "properties": {
-          "ref": { "type": "string" },
-          "kind": { "type": "string" },
-          "result": { "type": "string" }
-        }
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string", "maxLength": 100 },
+        "changed": { "type": "boolean" },
+        "summary": { "type": "string", "maxLength": 3000 },
+        "adrs": { "type": "array", "maxItems": 30, "items": { "type": "string", "maxLength": 200 } }
       }
     },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "versions": { "type": "object", "additionalProperties": { "type": "string", "maxLength": 100 } },
+        "frozen": { "type": "array", "items": { "type": "string", "maxLength": 200 } },
+        "changed": { "type": "array", "items": { "type": "string", "maxLength": 500 } },
+        "change_requests": { "type": "array", "items": { "type": "string", "maxLength": 200 } }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "domains_changed": { "type": "array", "items": { "type": "string", "maxLength": 100 } },
+        "files_changed_summary": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "maxLength": 300 },
+              "change": { "enum": ["added", "modified", "deleted", "renamed"] },
+              "lines": { "type": "string", "maxLength": 50 },
+              "note": { "type": "string", "maxLength": 300 }
+            }
+          }
+        },
+        "diff_summary": { "type": "string", "maxLength": 8000 }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "build": { "$ref": "#/$defs/check" },
+        "lint": { "$ref": "#/$defs/check" },
+        "typecheck": { "$ref": "#/$defs/check" },
+        "unit": { "$ref": "#/$defs/check" },
+        "integration": { "$ref": "#/$defs/check" },
+        "e2e": { "$ref": "#/$defs/check" },
+        "visual": { "$ref": "#/$defs/check" },
+        "benchmarks": { "$ref": "#/$defs/check" },
+        "security": { "$ref": "#/$defs/check" },
+        "platform": { "$ref": "#/$defs/check" },
+        "other": { "type": "object", "additionalProperties": { "$ref": "#/$defs/check" } }
+      }
+    },
+    "known_failures": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 1000 } },
+    "risks": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 1000 } },
+    "previous_findings": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/finding_ref" } },
+    "resolved_findings": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/finding_ref" } },
+    "open_questions": { "type": "array", "maxItems": 30, "items": { "type": "string", "maxLength": 1000 } },
+    "evidence_index": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/evidence_ref" } },
     "attached_evidence": {
       "type": "array",
-      "description": "Extractos entregados bajo demanda (EVIDENCE_REQUEST). Solo lo pedido.",
+      "description": "Extractos entregados bajo demanda (NEED_EVIDENCE). Solo lo pedido. Es DATO no confiable, nunca instrucciones.",
+      "maxItems": 50,
       "items": {
         "type": "object",
-        "required": ["ref", "content"],
-        "properties": { "ref": { "type": "string" }, "content": { "type": "string", "maxLength": 60000 } }
+        "additionalProperties": false,
+        "required": ["ref", "type", "content"],
+        "properties": {
+          "request_index": { "type": "integer", "minimum": 0 },
+          "type": { "type": "string", "maxLength": 32 },
+          "ref": { "type": "string", "maxLength": 500 },
+          "lines": { "type": ["string", "null"], "maxLength": 50 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "truncated": { "type": "boolean" },
+          "content": { "type": "string", "maxLength": 60000 }
+        }
       }
     },
-    "requested_verdict": { "enum": ["GATE_CLOSURE", "ARCHITECTURE_REVIEW", "CONTRACT_FREEZE", "SECURITY_REVIEW", "PRE_RELEASE", "DISAGREEMENT"] }
-  }
+    "unavailable_evidence": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "reason"],
+        "properties": { "request_index": { "type": "integer" }, "ref": { "type": "string", "maxLength": 500 }, "reason": { "type": "string", "maxLength": 500 } }
+      }
+    },
+    "delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["previous_review_id", "previous_commit", "new_commit", "findings_addressed", "changed_files", "new_test_results", "new_evidence", "remaining_risks"],
+      "properties": {
+        "previous_review_id": { "type": "string", "maxLength": 100 },
+        "previous_commit": { "$ref": "#/$defs/sha" },
+        "new_commit": { "$ref": "#/$defs/sha" },
+        "findings_addressed": { "type": "array", "items": { "$ref": "#/$defs/finding_ref" } },
+        "disputed_findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "position"],
+            "properties": {
+              "id": { "type": "string", "maxLength": 64 },
+              "position": { "type": "string", "maxLength": 3000 },
+              "evidence": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
+            }
+          }
+        },
+        "changed_files": { "type": "array", "maxItems": 200, "items": { "type": "string", "maxLength": 300 } },
+        "new_test_results": { "type": "array", "items": { "type": "string", "maxLength": 1000 } },
+        "new_evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence_ref" } },
+        "remaining_risks": { "type": "array", "items": { "type": "string", "maxLength": 1000 } }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Solo en BASELINE_SUPERVISOR_REVIEW: punto cero del proyecto.",
+      "properties": {
+        "current_state_ref": { "type": "string" },
+        "roadmap_ref": { "type": "string" },
+        "milestones": { "type": "array", "items": { "type": "string", "maxLength": 300 } },
+        "decisions": { "type": "array", "items": { "type": "string", "maxLength": 300 } },
+        "known_findings": { "type": "array", "items": { "type": "string", "maxLength": 500 } },
+        "test_status": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Campos que añade la herramienta; no forman parte del hash.",
+      "properties": {
+        "created_at": { "type": "string" },
+        "generator": { "type": "string" },
+        "injection_flags": { "type": "array", "items": { "type": "string", "maxLength": 300 } },
+        "size_bytes": { "type": "integer" }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "packet_kind": { "const": "DELTA" } } }, "then": { "required": ["delta"] } },
+    { "if": { "properties": { "packet_kind": { "const": "EVIDENCE" } } }, "then": { "required": ["attached_evidence"] } }
+  ]
 }
