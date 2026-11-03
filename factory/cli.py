@@ -132,6 +132,12 @@ def cmd_validate(a) -> int:
     draft = pk.upgrade_v1(_load_json(a.draft))
     draft.setdefault("schema_version", "2")
     draft.setdefault("packet_kind", "INITIAL")
+    rv = draft.setdefault("review", {})
+    for k in ("milestone", "gate", "trigger"):
+        if getattr(a, k, None):
+            rv[k] = getattr(a, k)
+    if draft["packet_kind"] == "BASELINE":
+        rv.setdefault("trigger", "BASELINE_SUPERVISOR_REVIEW")
     proj = draft.setdefault("project", {})
     proj.setdefault("id", profile["project_id"])
     proj.setdefault("repository", profile["repository"])
@@ -273,6 +279,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     va = ssub.add_parser("validate")
     va.add_argument("--draft", required=True)
+    va.add_argument("--milestone")
+    va.add_argument("--gate")
+    va.add_argument("--trigger")
     va.set_defaults(fn=cmd_validate, provider=None, model=None)
 
     he = ssub.add_parser("health")
