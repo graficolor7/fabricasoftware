@@ -1,26 +1,33 @@
 {
-  "schema_version": "1",
-  "factory_version": "1.0.0",
-  "project_id": "mi-proyecto",
-  "project_version": "0.1.0",
-  "milestone": "M1",
-  "gate": "G6",
-  "objective": "Cierre de M1: herramientas básicas de dibujo",
-  "commit": "0000000",
-  "architecture_version": "v1",
-  "contract_versions": { "API_CONTRACTS": "v0.1" },
-  "implemented_summary": "Qué se implementó, en 5-10 líneas.",
-  "changed_domains": ["core"],
-  "diff_summary": "Archivos y módulos tocados, sin pegar el diff completo.",
-  "requirements_status": [{ "id": "REQ-1", "status": "MET", "evidence": "tests/unit/x.test.ts" }],
-  "test_summary": "N unitarios en verde, E2E OK, ...",
-  "benchmark_summary": "",
-  "security_summary": "",
+  "schema_version": "2",
+  "factory_version": "1.1.0",
+  "packet_kind": "INITIAL",
+  "project": { "id": "mi-proyecto", "repository": "owner/repo", "branch": "main", "commit": "0000000", "pr": "0" },
+  "review": {
+    "milestone": "M1",
+    "gate": "G6",
+    "trigger": "MILESTONE_COMPLETION",
+    "objective": "Cierre de M1: herramientas básicas de dibujo",
+    "requested_verdict": true,
+    "acceptance_criteria": [{ "id": "AC-1", "text": "Rectángulo con F6", "status": "MET", "evidence": "tests/e2e/m1.mjs paso 2" }]
+  },
+  "architecture": { "version": "v1", "changed": false, "adrs": ["ADR-001"] },
+  "contracts": { "versions": { "API_CONTRACTS": "v0.1" }, "frozen": ["API_CONTRACTS"], "changed": [] },
+  "implementation": {
+    "summary": "Qué se implementó, en 5-10 líneas.",
+    "domains_changed": ["core"],
+    "files_changed_summary": [{ "path": "src/core/x.ts", "change": "modified", "lines": "+40 -3" }],
+    "diff_summary": "Módulos tocados y por qué, sin pegar el diff completo."
+  },
+  "verification": {
+    "typecheck": { "status": "PASS", "command": "pnpm typecheck", "evidence_ref": "ci-run-123" },
+    "unit": { "status": "PASS", "command": "pnpm test", "summary": "80/80", "evidence_ref": "ci-run-123" },
+    "e2e": { "status": "PASS", "summary": "cp1 + m1", "evidence_ref": "ci-run-123" }
+  },
   "known_failures": [],
   "risks": [],
   "previous_findings": [],
   "resolved_findings": [],
   "open_questions": [],
-  "evidence_index": [{ "ref": "ci-run-123", "kind": "ci", "result": "verde" }],
-  "requested_verdict": "GATE_CLOSURE"
+  "evidence_index": [{ "ref": "ci-run-123", "kind": "ci_run", "result": "verde" }]
 }

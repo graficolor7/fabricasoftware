@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "project_id": "mi-proyecto",
+  "repository": "owner/repo",
+  "review_id_prefix": "MIPROY",
+  "project_state": ".factory/PROJECT_STATE.json",
+  "supervisor_state": ".factory/SUPERVISOR_STATE.json",
+  "reviews_dir": ".factory/reviews",
+  "triggers": { "additional": [] },
+  "escalation_rules": [
+    { "trigger": "SHARED_CONTRACT_BREAKING_CHANGE", "paths": ["docs/API_CONTRACTS.md", "src/contracts/*"], "description": "toca contratos compartidos" }
+  ],
+  "verification": [
+    { "name": "tests", "category": "unit", "argv": ["npm", "test"], "required": true, "timeout_s": 900 }
+  ],
+  "evidence": {
+    "allowed_roots": [],
+    "denied_globs": [],
+    "adr_files": ["docs/DECISIONS.md"],
+    "contract_files": { "API_CONTRACTS": "docs/API_CONTRACTS.md" }
+  },
+  "config": {}
+}

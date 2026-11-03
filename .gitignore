@@ -4,3 +4,5 @@ __pycache__/
 verdict.json
 verdict.md
 .env
+.env.*
+!.env.example

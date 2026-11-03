@@ -18,7 +18,7 @@ jobs:
         run: |
           python - <<'PY'
           import json, glob, jsonschema
-          for p in glob.glob("schemas/*.json"):
+          for p in glob.glob("schemas/**/*.json", recursive=True):
               jsonschema.Draft202012Validator.check_schema(json.load(open(p)))
               print("OK", p)
           PY
@@ -27,4 +27,9 @@ jobs:
           python tools/validate.py project-state templates/PROJECT_STATE.json
           python tools/validate.py task templates/TASK.json
           python tools/validate.py supervisor-packet templates/SUPERVISOR_PACKET.json
-      - run: python -m pytest -q
+          python tools/validate.py supervisor-profile templates/SUPERVISOR_PROFILE.json
+      - name: Tests (sin red; el supervisor real nunca se llama en CI)
+        env:
+          SUPERVISOR_PROVIDER: mock
+          SUPERVISOR_LIVE_ENABLED: "false"
+        run: python -m pytest -q

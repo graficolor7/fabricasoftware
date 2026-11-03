@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/graficolor7/fabricasoftware/schemas/supervisor-override.schema.json",
+  "title": "SupervisorOverride",
+  "description": "Decisión del Product Owner humano que acepta el riesgo de un hallazgo. No borra el hallazgo: lo deja registrado como riesgo aceptado.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["override_id", "review_id", "finding_id", "finding", "reason", "authorized_by", "timestamp", "risk_accepted", "commit"],
+  "properties": {
+    "override_id": { "type": "string", "pattern": "^OVR-[A-Z0-9]+-[0-9]{4}$" },
+    "review_id": { "type": "string" },
+    "finding_id": { "type": "string" },
+    "finding": { "type": "object" },
+    "reason": { "type": "string", "minLength": 10 },
+    "authorized_by": { "type": "string", "minLength": 2 },
+    "timestamp": { "type": "string" },
+    "risk_accepted": { "type": "string", "minLength": 5 },
+    "commit": { "type": "string" },
+    "expires": { "type": ["string", "null"] }
+  }
+}

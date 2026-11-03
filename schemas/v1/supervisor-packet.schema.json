@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/graficolor7/fabricasoftware/schemas/v1/supervisor-packet.schema.json",
+  "title": "SupervisorPacket",
+  "description": "Paquete compacto que el Director prepara para una auditoría de gate. Nunca incluye el repositorio completo ni secretos.",
+  "type": "object",
+  "required": ["schema_version", "factory_version", "project_id", "milestone", "gate", "objective", "commit", "implemented_summary", "test_summary", "known_failures", "risks", "evidence_index", "requested_verdict"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "factory_version": { "type": "string" },
+    "project_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "project_version": { "type": "string" },
+    "milestone": { "type": "string" },
+    "gate": { "type": "string", "pattern": "^G[0-7](-[A-Z0-9_]+)?$" },
+    "objective": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "architecture_version": { "type": "string" },
+    "contract_versions": { "type": "object", "additionalProperties": { "type": "string" } },
+    "implemented_summary": { "type": "string" },
+    "changed_domains": { "type": "array", "items": { "type": "string" } },
+    "diff_summary": { "type": "string" },
+    "requirements_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "enum": ["MET", "PARTIAL", "NOT_MET", "NOT_APPLICABLE"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "test_summary": { "type": "string" },
+    "benchmark_summary": { "type": "string" },
+    "security_summary": { "type": "string" },
+    "known_failures": { "type": "array", "items": { "type": "string" } },
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "previous_findings": { "type": "array", "items": { "type": "string" } },
+    "resolved_findings": { "type": "array", "items": { "type": "string" } },
+    "open_questions": { "type": "array", "items": { "type": "string" } },
+    "evidence_index": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["ref", "kind"],
+        "properties": {
+          "ref": { "type": "string" },
+          "kind": { "type": "string" },
+          "result": { "type": "string" }
+        }
+      }
+    },
+    "attached_evidence": {
+      "type": "array",
+      "description": "Extractos entregados bajo demanda (EVIDENCE_REQUEST). Solo lo pedido.",
+      "items": {
+        "type": "object",
+        "required": ["ref", "content"],
+        "properties": { "ref": { "type": "string" }, "content": { "type": "string", "maxLength": 60000 } }
+      }
+    },
+    "requested_verdict": { "enum": ["GATE_CLOSURE", "ARCHITECTURE_REVIEW", "CONTRACT_FREEZE", "SECURITY_REVIEW", "PRE_RELEASE", "DISAGREEMENT"] }
+  }
+}

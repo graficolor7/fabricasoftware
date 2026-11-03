@@ -1,0 +1,49 @@
+# Aviso gratuito en cada PR: qué triggers del supervisor activa el cambio (por rutas del perfil).
+# No llama al supervisor, no usa secretos y nunca falla el PR por esto.
+#
+#   jobs:
+#     triggers:
+#       uses: graficolor7/fabricasoftware/.github/workflows/supervisor-trigger-check.yml@main
+name: supervisor-trigger-check
+on:
+  workflow_call:
+    inputs:
+      factory_ref:
+        type: string
+        required: false
+        default: main
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: graficolor7/fabricasoftware
+          ref: ${{ inputs.factory_ref }}
+          path: .fabrica
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r .fabrica/requirements.txt
+      - name: Evaluar triggers
+        env:
+          PYTHONPATH: .fabrica
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          python -m factory --project-root . trigger evaluate --base "$BASE" --head HEAD | tee triggers.json
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open("triggers.json"))
+          if r["supervisor_required"]:
+              print("### ⚠️ Este cambio activa gates del supervisor")
+              for t in r["triggers"]:
+                  print(f"- **{t['trigger']}** ({t['description']}): {', '.join(t['files'][:5])}")
+              print("\nEl Director debe abrir el gate correspondiente (`factory supervisor review`).")
+          else:
+              print("Sin triggers del supervisor: basta con CI.")
+          PY

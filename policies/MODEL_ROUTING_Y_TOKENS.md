@@ -6,7 +6,7 @@
 | DIRECTOR | arquitectura, planificación, integración entre dominios, riesgos, paquetes del supervisor | Claude Opus |
 | WORKER | implementación, refactor, debugging, tests, UI, APIs, documentación técnica | Claude Sonnet |
 | FAST | clasificación, búsqueda, inventarios, resúmenes, cambios repetitivos | Claude Haiku |
-| SUPERVISOR | auditoría independiente en gates | OpenAI (modelo en `OPENAI_MODEL`) |
+| SUPERVISOR | auditoría independiente en gates | OpenAI (modelo en `SUPERVISOR_MODEL`; ver `docs/supervisor/README.md`) |
 
 Las clases son estables; los modelos concretos cambian sin tocar el protocolo (ver `FACTORY.md`, adaptadores).
 

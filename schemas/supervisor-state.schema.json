@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/graficolor7/fabricasoftware/schemas/supervisor-state.schema.json",
+  "title": "SupervisorState",
+  "description": "Estado del supervisor de un proyecto (.factory/SUPERVISOR_STATE.json). Lo escribe solo la herramienta, y solo después de persistir un veredicto válido o un estado de fallo.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "updated_at", "gates"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "project_id": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "last_review_id": { "type": ["string", "null"] },
+    "gates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["milestone", "gate", "status", "review_id", "commit", "updated_at"],
+        "properties": {
+          "milestone": { "type": "string" },
+          "gate": { "type": "string" },
+          "trigger": { "type": "string" },
+          "status": { "type": "string" },
+          "gate_effect": { "type": "string" },
+          "review_id": { "type": "string" },
+          "round": { "type": "integer" },
+          "commit": { "type": "string" },
+          "verdict": { "type": ["string", "null"] },
+          "supervisor_model": { "type": ["string", "null"] },
+          "provider": { "type": "string" },
+          "blockers": { "type": "array", "items": { "type": "string" } },
+          "pending_actions": { "type": "array", "items": { "type": "string" } },
+          "accepted_risks": { "type": "array", "items": { "type": "string" } },
+          "updated_at": { "type": "string" }
+        }
+      }
+    }
+  }
+}
